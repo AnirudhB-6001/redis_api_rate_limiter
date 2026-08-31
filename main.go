@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -42,8 +43,14 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	redisAddr := os.Getenv("REDIS_ADDR")
+
+	if redisAddr == "" {
+		redisAddr = "127.0.0.1:6379"
+	}
+
 	rdb = redis.NewClient(&redis.Options{
-		Addr: "127.0.0.1:6379",
+		Addr: redisAddr,
 	})
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
