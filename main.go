@@ -21,18 +21,20 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := rdb.Incr(context.Background(), "rate:"+clientID).Result()
-	if err != nil {
+	ctx := context.Background()
+	key := "rate:" + clientID
+
+	pipe := rdb.TxPipeline()
+
+	countCmd := pipe.Incr(ctx, key)
+	pipe.ExpireNX(ctx, key, 60*time.Second)
+
+	if _, err := pipe.Exec(ctx); err != nil {
 		http.Error(w, "Redis error", http.StatusInternalServerError)
 		return
 	}
 
-	if count == 1 {
-		if err := rdb.Expire(context.Background(), "rate:"+clientID, 60*time.Second).Err(); err != nil {
-			http.Error(w, "Redis error", http.StatusInternalServerError)
-			return
-		}
-	}
+	count := countCmd.Val()
 
 	if count > 5 {
 		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
